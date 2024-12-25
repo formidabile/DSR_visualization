@@ -15,9 +15,11 @@ lock = Lock()
 is_goal = Event()
 edges = []
 
+# Построение сети на основе количества узлов
 def build_graph(nodes):
     graph = {}
     all_nodes = [str(i) for i in range(1, nodes + 1)]
+    # Задаем соседей для каждого узла
     for i in range(len(all_nodes)):
         j = 0
         neighbors = []
@@ -31,7 +33,8 @@ def build_graph(nodes):
         for n in neighbors:
             distances[n] = 1
         graph[all_nodes[i]] = distances
-
+    
+    # Делаем граф двунаправленным, добавляем недостающие связи
     for node, edges in graph.items():
         for neighbor, weight in edges.items():
             if neighbor not in graph:
@@ -40,6 +43,7 @@ def build_graph(nodes):
                 graph[neighbor][node] = weight
     return graph
 
+# Рисуем сеть
 def plot_graph(graph):
     G = nx.Graph()
     for vertex, neighbors in graph.items():
@@ -48,6 +52,7 @@ def plot_graph(graph):
             G.add_edge(vertex, v, weight=distance, length=distance)
     return G
 
+# Поточная функция для каждого узла
 def go_next(G, graph, vertex, dist, goal):
     global is_goal
     for neighbor, weight in graph[vertex].items():
@@ -59,9 +64,11 @@ def go_next(G, graph, vertex, dist, goal):
             came_from[neighbor] = vertex
             print(f"Sending RREP from {neighbor} to {vertex}")
             edges.append((vertex, neighbor))
+            # Если целевой узел является соседом, устанавливаем значение флага
             if neighbor == goal:
                 is_goal.set()
             lock.release()
+    # Рисуем пути на текущем шаге
     fig, axs = plt.subplots(1, 1)
     axs.set_title(f'Sending RREQ from {vertex}')
     pos = nx.shell_layout(G)
@@ -70,11 +77,13 @@ def go_next(G, graph, vertex, dist, goal):
     fig.align_titles()
     plt.show()
 
+# Алгоритм поиска кратчайшего пути от старта до цели
 def dijkstra(G, graph, start, goal):
     global is_goal
     visited = set()
     while priority_queue:
         current_distance, current_vertex = heapq.heappop(priority_queue)
+        # Если достигли цели, опустошаем очередь
         if is_goal.is_set():
             while current_vertex != goal:
                 current_distance, current_vertex = heapq.heappop(priority_queue)
@@ -89,6 +98,7 @@ def dijkstra(G, graph, start, goal):
         #go_next(G, graph, current_vertex, current_distance, goal)
     return came_from, distances
 
+# Восстановление пути
 def reconstruct_path(G, came_from, start, goal):
     current = goal
     path = [current]
@@ -100,6 +110,8 @@ def reconstruct_path(G, came_from, start, goal):
     for i in range(len(path) - 1):
         edges.append((path[i], path[i + 1]))
     print(f"Shortest path from {start} to {goal} is {path}")
+    
+    # Рисуем путь
     fig, axs = plt.subplots(1, 1)
     axs.set_title(f"Shortest path from {start} to {goal}")
     pos = nx.spring_layout(G)
@@ -109,6 +121,7 @@ def reconstruct_path(G, came_from, start, goal):
     plt.show()
     return path
 
+# Запуск программы
 graph = build_graph(nodes)
 G = plot_graph(graph)
 dijkstra(G, graph, start, goal)
